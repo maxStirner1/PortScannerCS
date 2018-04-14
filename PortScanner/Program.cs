@@ -10,7 +10,7 @@ using System.Linq;
 
 namespace PortScanner
 {
-    class Program
+    public partial class Program
     {
         static void Main(string[] args)
         {
@@ -24,7 +24,7 @@ namespace PortScanner
             CheckNumberOfHosts(args[2]) &&
             CheckNumberOfPorts(args[3]) == false) return;
             List<IPAddress> listOfIpAddresses = PopulateListOfIpAddresses(args[0], args[1]);
-
+            StartScanner(listOfIpAddresses, args[2], args[3]);
         }
         
         
