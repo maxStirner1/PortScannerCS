@@ -15,41 +15,60 @@ namespace PortScanner
         {
             int nrOfHosts = Int32.Parse(nrOfH);
             int nrOfThreads = Int32.Parse(nrOfT);
-            const int nrOfPorts = 65535;
+           // const int nrOfPorts = 100;
             List<IPAddress> list = listOfIpAddresses;
+            if (nrOfHosts > list.Count) nrOfHosts = list.Count;
 
-            List<Thread> hostThreads = new List<Thread>();
+           // List<Thread> hostThreads = new List<Thread>();
             
-            for (int i = 1; i <= nrOfHosts; i++)
+            for (int i = 0; i < nrOfHosts; i++)
             {
                 int thread_i = i;
-                hostThreads[i] = new Thread(() => HostThreadWorker(list, nrOfHosts, nrOfThreads, nrOfPorts, thread_i));
-                hostThreads[i].Start();
+                List<IPAddress> l = list;
+                int noh = nrOfHosts;
+                int not = nrOfThreads;
+                //int nop = nrOfPorts;
+                var hostThread = new Thread(() => HostThreadWorker(l, noh, not, thread_i));
+                hostThread.Start();
             }
         }
+        
+       
 
-        private static void HostThreadWorker(List<IPAddress> list, int nrOfHosts, int nrOfThreads, int nrOfPorts, int i)
+        private static void HostThreadWorker(List<IPAddress> list, int nrOfHosts, int nrOfThreads, 
+             int i)
         {
             int totalNrOfHosts = list.Count;
             int counter = 0;
             IPAddress ipAddrScanned = new IPAddress(0);
 
-            object o = counter;
-            List<Thread> portThreads = new List<Thread>();
-            List<CountdownEvent> countdownEvents = new List<CountdownEvent>();
-            countdownEvents[i] = new CountdownEvent(nrOfPorts);
+            //object o = counter;
+            //List<Thread> portThreads = new List<Thread>();
+            //List<CountdownEvent> countdownEvents = new List<CountdownEvent>();
+           // CountdownEvent cdeEvent = new CountdownEvent(nrOfPorts);
+            Mutex mut = new Mutex();
+            PortList portListing = new PortList(1,600);
+            Cde cdeobj = new Cde();
+            cdeobj._countdownEvent = new CountdownEvent(nrOfThreads);
 
 
+           
 
-            Monitor.Enter(o);
-
-            while (counter <= totalNrOfHosts)
+            while ((i+counter) < totalNrOfHosts)
             {
                 {
-                    ipAddrScanned = list[i];
-                    Monitor.Enter(o);
-                    counter++;
-                    Monitor.Exit(o);
+                    
+                    ipAddrScanned = list[i+counter];
+                    mut.WaitOne();
+                    try
+                    {
+                        counter+=nrOfHosts;
+                    }
+
+                    finally
+                    {
+                        mut.ReleaseMutex();
+                    }
                 }
                 
                
@@ -58,39 +77,57 @@ namespace PortScanner
 
                 for (int j = 0; j < nrOfThreads; j++)
                 {
-                    portThreads[j] =
-                        new Thread(() => PortThreadWorker(ipAddrScanned, nrOfPorts, j, countdownEvents[i]));
-                    portThreads[j].Start();
+                    int k = j;
+                    IPAddress ip = ipAddrScanned;
+                   // CountdownEvent cde = cdeEvent;
+                    //int nop = nrOfPorts;
+                    PortList p = portListing;
+                    Cde cdevent = cdeobj;
+                    var portThread =
+                        new Thread(() => PortThreadWorker(ip,  k, cdevent, p));
+                    portThread.Start();
                 }
 
-                countdownEvents[i].Wait();
+                cdeobj._countdownEvent.Wait();
 
             }
         }
 
-        private static void PortThreadWorker(IPAddress ipAddrScannned, int nrOfPorts, int j, CountdownEvent countdownEvent)
+        private static void PortThreadWorker(IPAddress ipAddrScannned, int j,
+            Cde cdeevent, PortList portListing)
         {
-            List<PortList> portLists = new List<PortList>();
+            //List<PortList> portLists = new List<PortList>();
 
-            portLists[j] = new PortList();
+           // PortList portListing = new PortList();
 
-            int[] port = new int[j];
-            for (int i = 0; i < j; i++)
+//            int[] port = new int[j];
+//            for (int i = 0; i < j; i++)
+//            {
+//                port[i] = 1;
+//            }
+
+            //List<TcpClient> tcpClients = new List<TcpClient>();
+           TcpClient tcpClientobj = new TcpClient();
+            UdpClient udpClientobj = new UdpClient();
+            Mutex mut = new Mutex();
+            int port = 1;
+            //object o = portListing;
+            while (port != -1)
             {
-                port[i] = 1;
-            }
-
-            List<TcpClient> tcpClients = new List<TcpClient>();
-            tcpClients[j] = new TcpClient();
-            
-            while (port[j] != -1)
-            {
-                Monitor.Enter(portLists[j]);
-                port[j] = portLists[j].getNext();
-                Monitor.Exit(portLists[j]);
+                mut.WaitOne();
                 try
                 {
-                    tcpClients[j] = new TcpClient(ipAddrScannned.ToString(), port[j]);
+                    port = portListing.getNext();
+                }
+
+                finally
+                {
+                    mut.ReleaseMutex();
+                }
+                try
+                {
+                     tcpClientobj = new TcpClient(ipAddrScannned.ToString(), port);
+                     udpClientobj = new UdpClient(ipAddrScannned.ToString(), port);
                 }
                 catch
                 {
@@ -100,17 +137,18 @@ namespace PortScanner
                 {
                     try
                     {
-                        tcpClients[j].Close();
+                        tcpClientobj.Close();
+                        udpClientobj.Close();
                     }
                     catch
                     {
                     }
                 }
                 
-                Console.WriteLine("TCP Port " + port[j] + " is open");
+                Console.WriteLine("Port " + port + " is open");
             }
 
-            countdownEvent.Signal();
+            cdeevent._countdownEvent.Signal();
         }
 
         public class PortList
@@ -125,9 +163,6 @@ namespace PortScanner
                 this.stop = stop;
                 this.ptr = start;
             }
-            public PortList() : this(1, 65535)
-            {
-            }
 
             public bool hasMore()
             {
@@ -139,6 +174,11 @@ namespace PortScanner
                     return ptr++;
                 return -1;
             }
+        }
+
+        public class Cde
+        {
+            public CountdownEvent _countdownEvent;
         }
     }
 }

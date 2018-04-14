@@ -81,7 +81,7 @@ namespace PortScanner
             try
             {
                 int numberOfHosts = Int32.Parse(nrofhosts);
-                if (numberOfHosts > 100)
+                if (numberOfHosts > 1000)
                 {
                     Usage();
                     return true;
@@ -105,7 +105,7 @@ namespace PortScanner
             try
             {
                 int numberOfPorts = Int32.Parse(nrofports);
-                if (numberOfPorts > 10)
+                if (numberOfPorts > 1000)
                 {
                     Usage();
                     return false;
@@ -150,7 +150,9 @@ the ending address as second argument in IP format ie.
 192.168.0.1. The second IP address must be equal to or 
 greater than the first. Enter the number of hosts to be 
 scanned in parallel as third argument and the number of 
-ports to be scanned in parallel on a host as fourth argument.");
+ports to be scanned in parallel on a host as fourth argument.
+The numbers cannot be greater than 10 hosts and 300 threads 
+per host");
         }
     }
 }
