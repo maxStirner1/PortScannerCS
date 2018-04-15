@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
@@ -18,6 +19,8 @@ namespace PortScanner
             // const int nrOfPorts = 100;
             List<IPAddress> list = listOfIpAddresses;
             if (nrOfHosts > list.Count) nrOfHosts = list.Count;
+            MutexClass mutobj = new MutexClass();
+            mutobj._mutex = new Mutex();
 
             // List<Thread> hostThreads = new List<Thread>();
 
@@ -27,15 +30,16 @@ namespace PortScanner
                 List<IPAddress> l = list;
                 int noh = nrOfHosts;
                 int not = nrOfThreads;
+                MutexClass m = mutobj;
                 //int nop = nrOfPorts;
-                var hostThread = new Thread(() => HostThreadWorker(l, noh, not, thread_i));
+                var hostThread = new Thread(() => HostThreadWorker(l, noh, not, thread_i,  m));
                 hostThread.Start();
             }
         }
 
 
         private static void HostThreadWorker(List<IPAddress> list, int nrOfHosts, int nrOfThreads,
-            int i)
+            int i, MutexClass m)
         {
             int totalNrOfHosts = list.Count;
             int counter = 0;
@@ -45,19 +49,26 @@ namespace PortScanner
             //List<Thread> portThreads = new List<Thread>();
             //List<CountdownEvent> countdownEvents = new List<CountdownEvent>();
             // CountdownEvent cdeEvent = new CountdownEvent(nrOfPorts);
-            Mutex mut = new Mutex();
+            
             PortList portListing = new PortList(1, 600);
-            Cde cdeobj = new Cde();
+           Cde cdeobj = new Cde();
             cdeobj._countdownEvent = new CountdownEvent(nrOfThreads);
-
-
+//            List<CountdownEvent> countdownEvents = new List<CountdownEvent>();
+//            for (int j = 0; j < nrOfHosts; j++)
+//            {
+//                countdownEvents[j] = new CountdownEvent(nrOfThreads);
+//            }
+            
             while ((i + counter) <= (totalNrOfHosts - 1))
             {
                 {
                     ipAddrScanned = list[i + counter];
+                    portListing = new PortList(1, 600);
+                     cdeobj = new Cde();
+                    cdeobj._countdownEvent = new CountdownEvent(nrOfThreads);
 
-
-                    mut.WaitOne();
+                    m._mutex.WaitOne();
+                   
                     try
                     {
                         counter += nrOfHosts;
@@ -65,10 +76,13 @@ namespace PortScanner
 
                     finally
                     {
-                        mut.ReleaseMutex();
+                        m._mutex.ReleaseMutex();
                     }
                 }
 
+                 string str = string.Concat("Machine ", ipAddrScanned, " is being scanned");
+                Console.WriteLine(str);
+                str.WriteDebug();
 
                 for (int j = 0; j < nrOfThreads; j++)
                 {
@@ -77,6 +91,7 @@ namespace PortScanner
                     // CountdownEvent cde = cdeEvent;
                     //int nop = nrOfPorts;
                     PortList p = portListing;
+                    //Cde cdevent = cdeobj;
                     Cde cdevent = cdeobj;
                     var portThread =
                         new Thread(() => PortThreadWorker(ip, k, cdevent, p));
@@ -84,6 +99,7 @@ namespace PortScanner
                 }
 
                 cdeobj._countdownEvent.Wait();
+                
             }
         }
 
@@ -178,12 +194,18 @@ namespace PortScanner
         {
             public CountdownEvent _countdownEvent;
         }
+
+        public class MutexClass
+        {
+            public Mutex _mutex;
+        }
     }
 
     public static class LoggingExtensions
     {
         static ReaderWriterLock locker = new ReaderWriterLock();
-
+        private static bool _filenameExists;
+        static string filename = String.Empty;
         public static void WriteDebug(this string text)
         {
             try
@@ -194,9 +216,15 @@ namespace PortScanner
                 string path = Uri.UnescapeDataString(uri.Path);
 
                 Directory.CreateDirectory(Path.GetDirectoryName(path) + "/Logs");
+                
 
-                string filename = string.Concat("Portscanner_", DateTime.Now.Ticks.ToString(), ".txt");
-              
+                
+                if (_filenameExists == false)
+                {
+                    filename = string.Concat("Portscanner_", DateTime.Now.Ticks.ToString(), ".txt");
+                    _filenameExists = true;
+                }
+
                 // Path.GetDirectoryName(path);
                 System.IO.File.AppendAllLines(
                     Path.Combine(
