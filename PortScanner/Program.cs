@@ -26,8 +26,7 @@ namespace PortScanner
             List<IPAddress> listOfIpAddresses = PopulateListOfIpAddresses(args[0], args[1]);
             StartScanner(listOfIpAddresses, args[2], args[3]);
         }
-        
-        
+       
         static bool CheckIpAddress(string ip1, string ip2)
         {
             byte[] bytes;
@@ -66,7 +65,7 @@ namespace PortScanner
 
             catch(Exception e)
             {
-                Console.WriteLine("Exception caught!!!");
+                Console.WriteLine("Exception caught!");
                 Console.WriteLine("Source : " + e.Source);
                 Console.WriteLine("Message : " + e.Message);
                 Usage();
@@ -90,7 +89,7 @@ namespace PortScanner
             
             catch(Exception e)
             {
-                Console.WriteLine("Exception caught!!!");
+                Console.WriteLine("Exception caught!");
                 Console.WriteLine("Source : " + e.Source);
                 Console.WriteLine("Message : " + e.Message);
                 Usage();
@@ -114,7 +113,7 @@ namespace PortScanner
             
             catch(Exception e)
             {
-                Console.WriteLine("Exception caught!!!");
+                Console.WriteLine("Exception caught!");
                 Console.WriteLine("Source : " + e.Source);
                 Console.WriteLine("Message : " + e.Message);
                 Usage();
